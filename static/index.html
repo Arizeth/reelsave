@@ -1,1 +1,62 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ReelSave — เก็บโมเมนต์ที่ใช่</title><link rel="stylesheet" href="/static/style.css?v=3"><script src="/static/app.js?v=3" defer></script></head><body><header><a class="brand" href="/">◈ ReelSave<span>V2</span></a><a href="#how">วิธีใช้งาน</a></header><main><div class="badge">FACEBOOK · INSTAGRAM · TIKTOK</div><h1>โมเมนต์ที่ชอบ<br><em>เก็บไว้ดูได้อีก</em></h1><p class="intro">ดาวน์โหลด Reels ที่คุณมีสิทธิ์บันทึก ในรูปแบบ MP4<br>วางลิงก์ ดูข้อมูล แล้วเลือกคุณภาพที่ต้องการ</p><section class="card"><form id="form"><label for="url">ลิงก์วิดีโอของคุณ</label><div class="input-row"><input id="url" type="url" placeholder="https://www.facebook.com/reel/…" required maxlength="2048"><button id="inspect">ตรวจสอบลิงก์ →</button></div><p class="hint">รองรับวิดีโอสาธารณะตามข้อจำกัดของแต่ละแพลตฟอร์ม</p></form><p id="message" role="status" aria-live="polite"></p><article id="preview" hidden><img id="thumbnail" alt="ภาพตัวอย่างวิดีโอ" referrerpolicy="no-referrer"><div><h2 id="title"></h2><p id="duration"></p></div></article><div id="actions" hidden><label class="consent"><input type="checkbox" id="authorized"> ฉันเป็นเจ้าของเนื้อหา หรือได้รับอนุญาตให้ดาวน์โหลด</label><div class="quality-heading"><h2>เลือกความละเอียด MP4</h2><span>สูงสุด 1440p ตามต้นทาง</span></div><div class="quality-table-wrap"><table class="quality-table"><caption class="sr-only">ความละเอียดและวิธีเตรียมไฟล์วิดีโอ</caption><thead><tr><th scope="col">ความละเอียด</th><th scope="col">การเตรียมไฟล์</th><th scope="col">ดาวน์โหลด</th></tr></thead><tbody id="qualities"></tbody></table></div><p class="quality-note">คุณภาพต้นทาง: ใช้ไฟล์จากแพลตฟอร์มและรวมเสียงเมื่อจำเป็น<br>ย่อขนาด: สร้างไฟล์ที่เล็กลง อาจใช้เวลานานขึ้น โดยไม่ขยายภาพเกินต้นฉบับ</p></div><a id="file" class="file" hidden>บันทึกไฟล์ MP4 ↓</a></section><div class="features"><div><b>01 / วางลิงก์</b><p>คัดลอก URL จากวิดีโอต้นทาง</p></div><div><b>02 / เลือกคุณภาพ</b><p>ตรวจสอบข้อมูลก่อนดาวน์โหลด</p></div><div><b>03 / บันทึกไว้</b><p>รับไฟล์ MP4 สูงสุด 100 MB</p></div></div><section id="how"><h2>เก็บอย่างเคารพเจ้าของผลงาน</h2><p>ใช้กับเนื้อหาของคุณ หรือเนื้อหาที่ได้รับอนุญาตเท่านั้น ReelSave ไม่ข้ามการล็อกอิน DRM หรือข้อจำกัดการเข้าถึง และไม่รับ cookies หรือรหัสผ่านของคุณ</p><details><summary>ทำไมบางลิงก์ดาวน์โหลดไม่ได้?</summary><p>วิดีโอส่วนตัว วิดีโอสด ข้อจำกัดภูมิภาค และการป้องกันจากแพลตฟอร์มอาจทำให้เข้าถึงไม่ได้ รองรับวิดีโอไม่เกิน 10 นาที ไฟล์ชั่วคราวจะถูกลบหลังประมาณ 30 นาที</p></details></section></main><footer><span>◈ ReelSave</span><span>Independent tool · ไม่เกี่ยวข้องกับ Meta หรือ TikTok</span></footer></body></html>
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7f8f5">
+  <title>ReelSave — ดาวน์โหลดวิดีโอและเพลงออนไลน์ฟรี</title>
+  <link rel="stylesheet" href="/static/style.css?v=4">
+  <script src="/static/app.js?v=4" defer></script>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/" aria-label="ReelSave หน้าหลัก"><span class="brand-mark" aria-hidden="true">r.</span>ReelSave<span class="version">V2</span></a>
+    <a href="#how">วิธีใช้งาน</a>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="headline">
+      <div class="badge">FACEBOOK · INSTAGRAM · TIKTOK</div>
+      <h1 id="headline">ดาวน์โหลดวิดีโอและเพลงออนไลน์ฟรี</h1>
+      <p class="intro">วางลิงก์วิดีโอที่คุณมีสิทธิ์บันทึก แล้วเลือกคุณภาพ MP4 ที่ต้องการ<br>เรียบง่าย พร้อมเก็บไว้ดูในเวลาของคุณ</p>
+    </section>
+    <section class="card" aria-label="ดาวน์โหลดวิดีโอ">
+      <form id="form">
+        <label for="url">ลิงก์วิดีโอของคุณ</label>
+        <div class="input-row">
+          <input id="url" type="url" placeholder="วางลิงก์วิดีโอที่นี่…" required maxlength="2048" autocomplete="off">
+          <button id="inspect">ตรวจสอบลิงก์ <span aria-hidden="true">→</span></button>
+        </div>
+        <p class="hint">รองรับวิดีโอสาธารณะตามข้อจำกัดของแต่ละแพลตฟอร์ม</p>
+      </form>
+      <p id="message" role="status" aria-live="polite"></p>
+      <article id="preview" hidden>
+        <img id="thumbnail" alt="ภาพตัวอย่างวิดีโอ" referrerpolicy="no-referrer">
+        <div><h2 id="title"></h2><p id="duration"></p></div>
+      </article>
+      <div id="actions" hidden>
+        <div class="quality-heading"><h2>เลือกความละเอียด MP4</h2><span>สูงสุด 1440p ตามต้นทาง</span></div>
+        <div class="quality-table-wrap">
+          <table class="quality-table">
+            <caption class="sr-only">ความละเอียดและวิธีเตรียมไฟล์วิดีโอ</caption>
+            <thead><tr><th scope="col">ความละเอียด</th><th scope="col">การเตรียมไฟล์</th><th scope="col">ดาวน์โหลด</th></tr></thead>
+            <tbody id="qualities"></tbody>
+          </table>
+        </div>
+        <p class="quality-note">คุณภาพต้นทาง: ใช้ไฟล์จากแพลตฟอร์มและรวมเสียงเมื่อจำเป็น<br>ย่อขนาด: สร้างไฟล์ที่เล็กลง โดยไม่ขยายภาพเกินต้นฉบับ</p>
+      </div>
+    </section>
+    <div class="features">
+      <div><span class="step">01</span><div><b>วางลิงก์</b><p>คัดลอกลิงก์จากวิดีโอต้นทาง</p></div></div>
+      <div><span class="step">02</span><div><b>เลือกคุณภาพ</b><p>เลือกความละเอียดที่เหมาะกับคุณ</p></div></div>
+      <div><span class="step">03</span><div><b>ดาวน์โหลดได้เลย</b><p>เริ่มรับไฟล์อัตโนมัติเมื่อเตรียมเสร็จ</p></div></div>
+    </div>
+    <section id="how">
+      <h2>เก็บอย่างเคารพเจ้าของผลงาน</h2>
+      <p>ใช้กับเนื้อหาของคุณ หรือเนื้อหาที่ได้รับอนุญาตเท่านั้น ReelSave ไม่ข้ามการล็อกอิน DRM หรือข้อจำกัดการเข้าถึง และไม่รับ cookies หรือรหัสผ่านของคุณ</p>
+      <details><summary>ทำไมบางลิงก์ดาวน์โหลดไม่ได้?</summary><p>วิดีโอส่วนตัว วิดีโอสด ข้อจำกัดภูมิภาค และการป้องกันจากแพลตฟอร์มอาจทำให้เข้าถึงไม่ได้ รองรับวิดีโอไม่เกิน 10 นาที และไฟล์ไม่เกิน 100 MB ไฟล์ชั่วคราวจะถูกลบหลังประมาณ 30 นาที</p></details>
+      <details><summary>ดาวน์โหลดเป็นไฟล์เพลงได้หรือยัง?</summary><p>ตอนนี้รองรับไฟล์วิดีโอ MP4 ยังไม่รองรับการแยกเสียงหรือดาวน์โหลดเป็น MP3</p></details>
+    </section>
+  </main>
+  <footer><span>ReelSave · เก็บโมเมนต์ในแบบของคุณ</span><span>ไม่เกี่ยวข้องกับ Meta หรือ TikTok</span></footer>
+</body>
+</html>

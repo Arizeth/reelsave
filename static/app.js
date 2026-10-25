@@ -31,7 +31,7 @@ function showQualities(options) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'quality-download';
-    button.textContent = option.kind === 'render' ? 'สร้าง MP4 ↓' : 'ดาวน์โหลด ↓';
+    button.textContent = 'ดาวน์โหลด ↓';
     button.setAttribute('aria-label', `${button.textContent} ${option.quality}p`);
     button.dataset.quality = option.quality;
     button.addEventListener('click', () => download(option));
@@ -44,8 +44,7 @@ $('form').addEventListener('submit', async event => {
   event.preventDefault();
   if (busy) return;
   setBusy(true);
-  $('preview').hidden = $('actions').hidden = $('file').hidden = true;
-  $('authorized').checked = false;
+  $('preview').hidden = $('actions').hidden = true;
   inspectedURL = '';
   message('กำลังตรวจสอบวิดีโอ…');
   const url = $('url').value.trim();
@@ -59,15 +58,13 @@ $('form').addEventListener('submit', async event => {
     if (data.thumbnail) $('thumbnail').src = data.thumbnail;
     showQualities(data.options);
     $('preview').hidden = $('actions').hidden = false;
-    message('ตรวจสอบแล้ว ยืนยันสิทธิ์และเลือกความละเอียดจากตารางได้เลย');
+    message('ตรวจสอบแล้ว เลือกความละเอียดจากตารางเพื่อดาวน์โหลดได้เลย');
   } catch (error) { message(error.message); }
   finally { setBusy(false); }
 });
 async function download(option) {
   if (busy) return;
-  if (!$('authorized').checked) return message('กรุณายืนยันว่าคุณมีสิทธิ์ดาวน์โหลดเนื้อหานี้');
   setBusy(true);
-  $('file').hidden = true;
   try {
     const {id} = await api('/api/download', {url:inspectedURL, quality:option.quality, authorized:true});
     message('กำลังตรวจสอบคุณภาพวิดีโอ…');
@@ -77,10 +74,14 @@ async function download(option) {
       const job = await api(`/api/jobs/${id}`);
       if (job.status === 'error') throw new Error(job.error);
       if (job.status === 'ready') {
-        $('file').href = `/api/files/${id}`;
-        $('file').textContent = `บันทึกไฟล์ MP4 ${option.quality}p ↓`;
-        $('file').hidden = false;
-        message(`ไฟล์ ${option.quality}p พร้อมแล้ว กดบันทึกไฟล์ได้เลย`);
+        const link = document.createElement('a');
+        link.href = `/api/files/${encodeURIComponent(id)}`;
+        link.download = `reelsave-${option.quality}p.mp4`;
+        link.hidden = true;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        message(`เริ่มดาวน์โหลดไฟล์ ${option.quality}p แล้ว ตรวจสอบรายการดาวน์โหลดของเบราว์เซอร์ได้เลย`);
         return;
       }
       message(stages[job.stage] || stages.downloading);

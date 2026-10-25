@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 let inspectedURL = '';
 let busy = false;
+$('thumbnail').addEventListener('error', () => { $('thumbnail').hidden = true; });
 function message(text) { $('message').textContent = text; }
 function setBusy(value) {
   busy = value;

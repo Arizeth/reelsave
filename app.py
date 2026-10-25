@@ -19,6 +19,8 @@ from egress import start_proxy
 
 ROOT = Path(__file__).parent
 MAX_BYTES = 100 * 1024 * 1024
+MAX_QUALITY = 1440
+RENDER_QUALITIES = (360, 480, 540, 640, 720, 1080)
 SLOTS = asyncio.Semaphore(2)
 JOBS = {}
 RATE = defaultdict(deque)
@@ -98,7 +100,7 @@ async def protections(request: Request, call_next):
 
 class VideoRequest(BaseModel):
     url: str = Field(max_length=2048)
-    quality: int = Field(default=720, ge=144, le=1080)
+    quality: int = Field(default=720, ge=144, le=MAX_QUALITY)
     authorized: bool = False
 
 
@@ -199,7 +201,7 @@ async def inspect(body: VideoRequest):
             thumbnail = info.get('thumbnail') or ''
             if not thumbnail.startswith('https://'):
                 thumbnail = ''
-            return {'title': info.get('title', 'Reel'), 'thumbnail': thumbnail, 'duration': info.get('duration'), 'qualities': heights}
+            return {'title': info.get('title', 'Reel'), 'thumbnail': thumbnail, 'duration': info.get('duration'), 'qualities': heights, 'options': quality_rows(formats)}
         except (RuntimeError, asyncio.TimeoutError, ValueError) as exc:
             raise HTTPException(502, str(exc) or 'ตรวจสอบวิดีโอหมดเวลา')
 
@@ -211,16 +213,45 @@ def quality_options(formats):
             continue
         dimensions = [fmt.get(key) for key in ('width', 'height')]
         dimensions = [value for value in dimensions if isinstance(value, int) and value > 0]
-        if dimensions and 144 <= min(dimensions) <= 1080:
+        if dimensions and 144 <= min(dimensions) <= MAX_QUALITY:
             qualities.add(min(dimensions))
     return sorted(qualities)
 
 
+def quality_rows(formats):
+    native = quality_options(formats)
+    if not native:
+        return []
+    rows = []
+    for quality in sorted(set(native) | {q for q in RENDER_QUALITIES if q < max(native)}, reverse=True):
+        kind = 'render'
+        if quality in native:
+            kind = 'merge'
+            for fmt in formats:
+                if (quality_options([fmt]) == [quality]
+                        and fmt.get('acodec') not in (None, 'none')
+                        and fmt.get('vcodec') not in (None, 'none')):
+                    kind = 'direct'
+                    break
+        rows.append({'quality': quality, 'kind': kind})
+    return rows
+
+
+def source_quality(formats, target):
+    rows = quality_rows(formats)
+    row = next((row for row in rows if row['quality'] == target), None)
+    if row is None:
+        raise RuntimeError('ความละเอียดนี้ไม่มีให้เลือก กรุณาตรวจสอบลิงก์ใหม่')
+    if row['kind'] == 'render':
+        return min(q for q in quality_options(formats) if q > target), True
+    return target, False
+
+
 def format_selector(quality):
     # Portrait 720p is commonly 720x1280: match either side, not height alone.
-    video = f'(bv[height<={quality}][ext=mp4]/bv[width<={quality}][ext=mp4])'
-    combined = f'b[height<={quality}][ext=mp4]/b[width<={quality}][ext=mp4]'
-    return f'{video}+ba[ext=m4a]/{combined}'
+    video = f'(bv[height={quality}][ext=mp4]/bv[width={quality}][ext=mp4])'
+    combined = f'b[height={quality}][ext=mp4]/b[width={quality}][ext=mp4]'
+    return f'{combined}/{video}+ba[ext=m4a]'
 
 
 def ensure_media_tools():
@@ -247,6 +278,60 @@ def completed_video(directory, output):
     raise RuntimeError('ดาวน์โหลดจบแต่ไม่พบไฟล์ MP4 กรุณาลองใหม่หรือให้ผู้ดูแลตรวจสอบขั้นตอนดาวน์โหลด')
 
 
+async def run_media_command(args, directory, timeout):
+    process = await asyncio.create_subprocess_exec(
+        *args, cwd=directory, stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE, start_new_session=os.name != 'nt')
+    try:
+        output, _ = await asyncio.wait_for(collect_output(process, directory), timeout)
+    except (asyncio.TimeoutError, asyncio.CancelledError):
+        await stop_process(process)
+        raise
+    if process.returncode:
+        raise RuntimeError('ประมวลผลไฟล์ไม่สำเร็จ กรุณาเลือกคุณภาพต้นทางหรือลองใหม่')
+    return output
+
+
+async def probe_video(video, directory):
+    output = await run_media_command([
+        'ffprobe', '-v', 'error', '-protocol_whitelist', 'file,pipe',
+        '-show_streams', '-show_format', '-of', 'json', str(video)], directory, 10)
+    try:
+        info = json.loads(output)
+        stream = next(s for s in info['streams'] if s.get('codec_type') == 'video')
+        width, height = int(stream['width']), int(stream['height'])
+        duration = float(info['format']['duration'])
+        if not (0 < width <= 3840 and 0 < height <= 3840
+                and width * height <= 1440 * 2560 and 0 < duration <= 600):
+            raise ValueError()
+        return width, height
+    except (ValueError, KeyError, StopIteration, TypeError):
+        raise RuntimeError('ขนาดภาพหรือความยาวของไฟล์เกินขอบเขตที่ระบบประมวลผลได้')
+
+
+async def render_video(video, target, directory):
+    width, height = await probe_video(video, directory)
+    if min(width, height) <= target:
+        raise RuntimeError('ไม่สามารถย่อเป็นความละเอียดนี้ได้ ระบบจะไม่ขยายภาพเกินต้นฉบับ')
+    rendered = directory / 'rendered.mp4'
+    scale = f'scale=-2:{target}' if width >= height else f'scale={target}:-2'
+    await run_media_command([
+        'ffmpeg', '-nostdin', '-y', '-v', 'error', '-protocol_whitelist', 'file,pipe',
+        '-threads', '2', '-i', str(video), '-map', '0:v:0', '-map', '0:a:0?',
+        '-vf', scale, '-filter_threads', '1', '-c:v', 'libx264', '-preset', 'veryfast',
+        '-crf', '23', '-pix_fmt', 'yuv420p', '-threads', '2', '-c:a', 'aac',
+        '-b:a', '128k', '-movflags', '+faststart', '-fs', str(MAX_BYTES + 1),
+        str(rendered)], directory, 120)
+    if not rendered.is_file() or rendered.stat().st_size == 0:
+        raise RuntimeError('ไม่พบไฟล์หลังประมวลผล กรุณาลองใหม่')
+    if rendered.stat().st_size > MAX_BYTES:
+        raise RuntimeError('ไฟล์หลังประมวลผลมีขนาดเกิน 100 MB')
+    out_width, out_height = await probe_video(rendered, directory)
+    if min(out_width, out_height) != target:
+        raise RuntimeError('ความละเอียดของไฟล์ที่สร้างไม่ตรงกับที่เลือก')
+    rendered.replace(video)
+
+
 async def download(key, body):
     job = JOBS[key]
     directory = Path(app.state.directory) / key
@@ -254,13 +339,24 @@ async def download(key, body):
     try:
         ensure_media_tools()
         async with SLOTS:
-            output = await run_ytdlp(body.url, ['-f', format_selector(body.quality),
+            job['stage'] = 'inspecting'
+            raw = await run_ytdlp(body.url, ['--dump-single-json', '--skip-download'], directory, 60)
+            info = json.loads(raw)
+            duration = info.get('duration')
+            if info.get('is_live') or not isinstance(duration, (int, float)) or not 0 < duration <= 600:
+                raise RuntimeError('รองรับเฉพาะวิดีโอไม่สดที่ระบุความยาวได้และยาวไม่เกิน 10 นาที')
+            source, render = source_quality(info.get('formats') or [], body.quality)
+            job['stage'] = 'downloading'
+            output = await run_ytdlp(body.url, ['-f', format_selector(source),
                 '--merge-output-format', 'mp4', '--downloader', 'native', '--hls-prefer-native',
                 '--match-filter', 'duration <= 600 & !is_live', '-o', str(directory / 'video.%(ext)s')], directory)
-        completed_video(directory, output)
-        job['status'] = 'ready'
+            video = completed_video(directory, output)
+            if render:
+                job['stage'] = 'rendering'
+                await render_video(video, body.quality, directory)
+        job.update(status='ready', stage='ready')
     except Exception as exc:
-        job.update(status='error', error=str(exc) or 'ดาวน์โหลดหมดเวลา กรุณาลองอีกครั้ง')
+        job.update(status='error', stage='error', error=str(exc) or 'ประมวลผลหมดเวลา กรุณาลองอีกครั้ง')
         shutil.rmtree(directory, ignore_errors=True)
 
 
@@ -276,7 +372,7 @@ async def begin(body: VideoRequest):
     if sum(j['status'] == 'working' for j in JOBS.values()) >= 2:
         raise HTTPException(429, 'คิวเต็ม กรุณาลองอีกครั้ง')
     key = uuid.uuid4().hex
-    JOBS[key] = {'status': 'working', 'created': time.monotonic()}
+    JOBS[key] = {'status': 'working', 'stage': 'inspecting', 'quality': body.quality, 'created': time.monotonic()}
     task = asyncio.create_task(download(key, body))
     app.state.tasks.add(task)
     task.add_done_callback(app.state.tasks.discard)
@@ -288,11 +384,11 @@ async def status(key: str):
     if key not in JOBS:
         raise HTTPException(404, 'ไม่พบรายการ หรือไฟล์หมดอายุแล้ว')
     job = JOBS[key]
-    return {'status': job['status'], 'error': job.get('error')}
+    return {'status': job['status'], 'stage': job.get('stage'), 'error': job.get('error')}
 
 
 @app.get('/api/files/{key}')
 async def file(key: str):
     if key not in JOBS or JOBS[key]['status'] != 'ready':
         raise HTTPException(404, 'ไม่พบไฟล์')
-    return FileResponse(Path(app.state.directory) / key / 'video.mp4', filename='reelsave.mp4', media_type='video/mp4')
+    return FileResponse(Path(app.state.directory) / key / 'video.mp4', filename=f"reelsave-{JOBS[key]['quality']}p.mp4", media_type='video/mp4')

@@ -55,6 +55,8 @@ def test_inspect(client, monkeypatch):
 
 def test_download_pipeline(client, monkeypatch):
     async def fake_download(url, extra, directory, timeout=180):
+        if '--dump-single-json' in extra:
+            return json.dumps({'duration': 1, 'formats': [{'width':720, 'height':1280, 'ext':'mp4'}]}).encode()
         (directory / 'video.mp4').write_bytes(b'test fixture')
         return b''
     monkeypatch.setattr(module, 'run_ytdlp', fake_download)
@@ -127,7 +129,7 @@ def test_portrait_quality_uses_short_edge():
         {'width':1440, 'height':2560, 'ext':'mp4', 'vcodec':'av1'},
         {'height':None, 'ext':'mp4'},
         {'width':720, 'height':1280, 'ext':'webm'},
-    ]) == [720,1080]
+    ]) == [720,1080,1440]
 
 
 def test_selector_picks_portrait_and_audio():
@@ -198,3 +200,33 @@ def test_size_skip_is_not_misreported_as_merge_failure(tmp_path):
     (tmp_path / 'video.faudio.m4a').write_bytes(b'audio')
     with pytest.raises(RuntimeError, match='100 MB'):
         module.completed_video(tmp_path, b'File is larger than max-filesize')
+
+
+@pytest.mark.parametrize('duration', [None, 601])
+def test_download_rejects_unknown_or_long_duration_before_media_fetch(client, monkeypatch, duration):
+    runner=AsyncMock(return_value=json.dumps({'duration':duration,'formats':[{'width':720,'height':1280,'ext':'mp4'}]}).encode())
+    monkeypatch.setattr(module,'run_ytdlp',runner)
+    response=client.post('/api/download',json={'url':'https://www.facebook.com/reel/1','quality':720,'authorized':True})
+    assert response.status_code==202
+    import time
+    for _ in range(50):
+        job=client.get('/api/jobs/'+response.json()['id']).json()
+        if job['status']!='working':break
+        time.sleep(0.01)
+    assert job['status']=='error' and '10 นาที' in job['error']
+    assert runner.await_count==1
+    assert not list(module.Path(module.app.state.directory).iterdir())
+
+
+def test_download_rejects_unoffered_quality_before_media_fetch(client,monkeypatch):
+    runner=AsyncMock(return_value=json.dumps({'duration':16,'formats':[{'width':720,'height':1280,'ext':'mp4'}]}).encode())
+    monkeypatch.setattr(module,'run_ytdlp',runner)
+    response=client.post('/api/download',json={'url':'https://www.facebook.com/reel/1','quality':1440,'authorized':True})
+    assert response.status_code==202
+    import time
+    for _ in range(50):
+        job=client.get('/api/jobs/'+response.json()['id']).json()
+        if job['status']!='working':break
+        time.sleep(0.01)
+    assert job['status']=='error' and 'ไม่มีให้เลือก' in job['error']
+    assert runner.await_count==1

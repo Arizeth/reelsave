@@ -86,7 +86,7 @@ Compose ผูกพอร์ตเฉพาะ loopback ใช้ non-root, rea
 - เมื่อไม่มี HTTPS_PROXY จะเชื่อมต่อ IP ที่ตรวจแล้วโดยตรง เมื่อมี HTTPS_PROXY จะส่ง CONNECT ผ่าน upstream ที่ระบบจัดเตรียมไว้โดยใช้ hostname เดิม หลังตรวจ allowlist/DNS แล้ว **โหมด upstream ไม่สามารถ pin IP ที่ upstream resolve ได้** จึงต้องใช้ trusted proxy ที่บังคับปฏิเสธ private/reserved destinations ณ จุดเชื่อมต่อจริงก่อนเปิด production การตรวจ DNS ฝั่งแอปเพียงอย่างเดียวไม่รับประกันป้องกัน DNS rebinding ที่ upstream
 - ใช้ `--compat-options no-certifi` เพื่อใช้ system certificate trust รวมถึง SSL_CERT_FILE ที่คลาวด์จัดเตรียมไว้ ยังคงตรวจ TLS และ hostname ไม่ใช้ `--no-check-certificates` อย่าตั้ง SSL_CERT_FILE เป็นไฟล์ที่ไม่ได้รับความเชื่อถือ
 - ใช้ native media downloader; FFmpeg ใช้ merge ไฟล์ในเครื่อง ไม่รับ remote URL จากผู้ใช้โดยตรง ไม่ใช้ cookies/login หรือข้าม DRM
-- จำกัดงานดาวน์โหลด 2 งาน, extraction timeout 60 วินาที, download timeout 180 วินาที, คุณภาพสูงสุด 1080p โดยอิงด้านสั้น (เช่น 720×1280 คือ 720p), วิดีโอไม่เกิน 10 นาที, ไฟล์ผลลัพธ์ไม่เกิน 100 MB และตรวจ temporary disk usage ระหว่างทำงาน เกณฑ์ขนาดเป็นการตรวจแบบ polling อาจเกินชั่วขณะได้; hard storage/CPU/memory limits อยู่ใน Compose
+- จำกัดงานดาวน์โหลด 2 งาน, extraction timeout 60 วินาที, download timeout 180 วินาที และการย่อขนาด timeout 120 วินาที, คุณภาพสูงสุด 1440p โดยอิงด้านสั้น (เช่น 720×1280 คือ 720p), วิดีโอไม่เกิน 10 นาที, ไฟล์ผลลัพธ์ไม่เกิน 100 MB และตรวจ temporary disk usage ระหว่างทำงาน เกณฑ์ขนาดเป็นการตรวจแบบ polling อาจเกินชั่วขณะได้; hard storage/CPU/memory limits อยู่ใน Compose
 - ไฟล์และสถานะงานลบเมื่อครบประมาณ 30 นาที; ปิดโปรแกรมลบ temp directory ปัจจุบัน งานไม่คงอยู่หลัง restart หากถูก kill แบบฉับพลันให้ลบโฟลเดอร์ `reelsave-*` ใน system temp ที่ไม่มี instance ใช้งานอยู่
 - ลิงก์ไฟล์ใช้ random job ID แบบ bearer; อย่าแชร์ ID กับบุคคลอื่น ไม่มีบัญชีผู้ใช้หรือ ACL แยกผู้ใช้
 - รูป thumbnail โหลดจาก HTTPS ต้นทางในเบราว์เซอร์ ซึ่งต้นทางอาจเห็น IP ของผู้ใช้ ชื่อวิดีโอแสดงผ่าน textContent ไม่แทรก HTML
@@ -110,8 +110,29 @@ Compose ผูกพอร์ตเฉพาะ loopback ใช้ non-root, rea
 - ffprobe: ภาพ AV1 720×1280, เสียง AAC, ความยาวรวม 16.047007 วินาที
 - FFmpeg ถอดรหัสภาพและเสียงตลอดไฟล์ผ่าน ไม่มีข้อผิดพลาด (เป็นการตรวจทางเทคนิค ยังไม่ได้ฟัง/ดูด้วยคน)
 - AV1 ใน MP4 อาจไม่เล่นในเบราว์เซอร์/มือถือรุ่นเก่า ยังไม่มีการ transcode เป็น H.264
-- ชุด pytest ล่าสุด 48 tests ครอบคลุม API/security, upstream CONNECT, ตัวเลือกฟอร์แมตแนวตั้งด้วย yt-dlp และ FFmpeg merge จริง มี Starlette TestClient deprecation warning 1 รายการ
+- ชุด pytest ล่าสุด 59 tests ครอบคลุม API/security, upstream CONNECT, ตัวเลือกฟอร์แมตแนวตั้งด้วย yt-dlp และ FFmpeg merge จริง มี Starlette TestClient deprecation warning 1 รายการ
 - JavaScript syntax และ Compose config ผ่าน Docker image build ครั้งก่อนติด DNS deb.debian.org ภายใน Docker ยังไม่ได้ทดสอบ container runtime หลัง Publish
-- Instagram, TikTok, Windows runtime, UI บนเบราว์เซอร์/มือถือจริง และ Facebook 1080p ยังไม่ได้ทดสอบ
+- Instagram, TikTok, Windows runtime, มือถือจริง และ Facebook 1080p ยังไม่ได้ทดสอบ; ตรวจหน้าเว็บด้วย Chromium ที่ viewport desktop/mobile แล้ว
 
-ขั้นตอนถัดไป: ทดสอบ UI ในเบราว์เซอร์จริงและมือถือ จากนั้นใช้ลิงก์ Instagram/TikTok ที่ผู้ใช้มีสิทธิ์ดาวน์โหลด ก่อน production ต้องตรวจ trusted upstream egress และข้อจำกัดระบบในหัวข้อด้านบน
+## เลือกหลายความละเอียด
+
+หน้า preview แสดงตารางพร้อมปุ่มต่อความละเอียด โดยอ่านคุณภาพต้นทางจริง ไม่แสดงว่าดาวน์โหลดความคมชัดที่ไม่มีอยู่ได้:
+
+- **ไฟล์ต้นทางพร้อมเสียง**: ใช้ MP4 ที่มีทั้งภาพและเสียงอยู่แล้ว
+- **ต้นทาง · รวมภาพและเสียง**: ดาวน์โหลดภาพและเสียงแยกกันแล้วรวมโดยไม่ encode ภาพใหม่
+- **ย่อขนาด · ใช้เวลาประมวลผล**: เมื่อไม่มีขนาดที่เลือก ระบบเลือกต้นทางที่เล็กที่สุดซึ่งยังใหญ่กว่าเป้าหมาย แล้วย่อด้วย FFmpeg เป็น H.264/AAC ไม่ upscale
+
+คุณภาพต้นทางรองรับถึง 1440p ตัวเลือกย่อขนาดคือ 360p, 480p, 540p, 640p, 720p และ 1080p เมื่อมีต้นทางใหญ่พอ ความละเอียดอิงด้านสั้นสำหรับแนวตั้ง เช่น 720×1280 คือ 720p ไม่ใช่ 1280p ไม่มี MP3 ในเวอร์ชันนี้
+
+ทุกงานตรวจ metadata/ระยะเวลา/คุณภาพที่เลือกใหม่ก่อนดาวน์โหลด ไม่เชื่อข้อมูลความละเอียดที่ส่งมาจากเบราว์เซอร์ งานย่อขนาดใช้ CPU เพิ่มขึ้น จำกัด FFmpeg เป็น 2 threads และ filter 1 thread ใช้ slot เดียวกับงานดาวน์โหลดตลอดกระบวนการ รองรับสูงสุดสองงานพร้อมกัน ตรวจขนาดไฟล์ 100 MB และ temporary disk ระหว่างประมวลผล FFmpeg/ffprobe ที่อ่านไฟล์ในเครื่องจำกัด protocol เป็น file,pipe ไม่รับ remote URL งานย่อจำกัดภาพต้นทางไม่เกิน 3840 ต่อด้านและจำนวนพิกเซลไม่เกิน 1440×2560 หากหมดเวลาให้เลือกคุณภาพต้นทางแทน
+
+ผลทดสอบรอบเพิ่มหลายความละเอียดกับ Reel เดิมผ่าน API จริง:
+
+| ตัวเลือก | ขนาดภาพที่ได้ | Codec ภาพ / เสียง | ขนาดไฟล์ | ผลตรวจ |
+| --- | --- | --- | --- | --- |
+| 1440p ต้นทาง | 1440×2560 | AV1 / AAC | 8,157,611 bytes | ffprobe และถอดรหัสเต็มไฟล์ผ่าน |
+| 480p ย่อขนาด | 480×854 | H.264 / AAC | 3,103,658 bytes | ffprobe และถอดรหัสเต็มไฟล์ผ่าน |
+
+ตรวจ UI ด้วย Playwright/Chromium และ API จำลอง: ตาราง 7 แถว, ยืนยันสิทธิ์ก่อนรับงาน, ส่ง 480p ถูกต้อง, แสดงขั้นตอนย่อขนาด, ปุ่มรับไฟล์, viewport 390px ไม่มีหน้าเว็บล้นแนวนอน และไม่มี JavaScript error ชุด pytest ล่าสุดผ่าน 59 tests รวม FFmpeg ย่อแนวตั้ง/แนวนอนจริง ป้องกัน upscale, validation และการหยุด subprocess เมื่อ timeout
+
+ขั้นตอนถัดไป: ทดสอบบนมือถือจริงและใช้ลิงก์ Instagram/TikTok ที่ผู้ใช้มีสิทธิ์ดาวน์โหลด ก่อน production ต้องตรวจ trusted upstream egress และข้อจำกัดระบบในหัวข้อด้านบน

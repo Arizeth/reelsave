@@ -156,3 +156,45 @@ def test_runner_keeps_tls_verification_and_uses_system_trust(client, monkeypatch
     assert '--no-check-certificates' not in args
     index = args.index('--compat-options')
     assert args[index + 1] == 'no-certifi'
+
+
+@pytest.mark.parametrize('missing', ['ffmpeg', 'ffprobe'])
+def test_missing_media_tool_rejected_before_job(client, monkeypatch, missing):
+    monkeypatch.setattr(module.shutil, 'which', lambda name: None if name == missing else '/usr/bin/' + name)
+    runner = AsyncMock()
+    monkeypatch.setattr(module, 'run_ytdlp', runner)
+    response = client.post('/api/download', json={'url':'https://www.facebook.com/reel/1', 'authorized':True})
+    assert response.status_code == 503
+    assert missing in response.json()['detail']
+    assert not module.JOBS
+    runner.assert_not_called()
+
+
+def test_unmerged_tracks_report_merge_failure(tmp_path):
+    (tmp_path / 'video.f123.mp4').write_bytes(b'video')
+    (tmp_path / 'video.f456.m4a').write_bytes(b'audio')
+    with pytest.raises(RuntimeError, match='FFmpeg'):
+        module.completed_video(tmp_path, b'')
+
+
+@pytest.mark.parametrize(('output', 'expected'), [
+    (b'[download] File is larger than max-filesize (104857600 bytes)', '100 MB'),
+    (b'Reel does not pass filter (duration <= 600 & !is_live), skipping', '10 นาที'),
+    (b'', 'ไม่พบไฟล์ MP4'),
+])
+def test_missing_output_has_specific_reason(tmp_path, output, expected):
+    with pytest.raises(RuntimeError, match=expected):
+        module.completed_video(tmp_path, output)
+
+
+def test_oversized_final_output_is_rejected(tmp_path, monkeypatch):
+    monkeypatch.setattr(module, 'MAX_BYTES', 4)
+    (tmp_path / 'video.mp4').write_bytes(b'12345')
+    with pytest.raises(RuntimeError, match='100 MB'):
+        module.completed_video(tmp_path, b'')
+
+
+def test_size_skip_is_not_misreported_as_merge_failure(tmp_path):
+    (tmp_path / 'video.faudio.m4a').write_bytes(b'audio')
+    with pytest.raises(RuntimeError, match='100 MB'):
+        module.completed_video(tmp_path, b'File is larger than max-filesize')

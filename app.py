@@ -223,18 +223,41 @@ def format_selector(quality):
     return f'{video}+ba[ext=m4a]/{combined}'
 
 
+def ensure_media_tools():
+    missing = [name for name in ('ffmpeg', 'ffprobe') if not shutil.which(name)]
+    if missing:
+        raise RuntimeError('เซิร์ฟเวอร์ยังไม่พร้อมรวมวิดีโอและเสียง: ไม่พบ ' + ', '.join(missing) + ' กรุณาให้ผู้ดูแลติดตั้ง FFmpeg บนเครื่องที่รันเว็บ')
+
+
+def completed_video(directory, output):
+    video = directory / 'video.mp4'
+    text = output.decode('utf-8', errors='replace').lower()
+    if video.is_file():
+        if video.stat().st_size > MAX_BYTES:
+            raise RuntimeError('ไฟล์วิดีโอมีขนาดเกิน 100 MB')
+        if video.stat().st_size == 0:
+            raise RuntimeError('ไฟล์วิดีโอว่างเปล่า กรุณาลองใหม่')
+        return video
+    if 'max-filesize' in text or ('larger than' in text and 'filesize' in text):
+        raise RuntimeError('ไฟล์วิดีโอมีขนาดเกิน 100 MB')
+    if 'does not pass filter' in text:
+        raise RuntimeError('วิดีโอถูกข้าม: รองรับเฉพาะวิดีโอไม่สดที่ระบุความยาวได้และยาวไม่เกิน 10 นาที')
+    if any(directory.glob('video.f*')):
+        raise RuntimeError('ดาวน์โหลดภาพหรือเสียงแล้ว แต่ยังรวมเป็น MP4 ไม่สำเร็จ กรุณาให้ผู้ดูแลตรวจสอบ FFmpeg')
+    raise RuntimeError('ดาวน์โหลดจบแต่ไม่พบไฟล์ MP4 กรุณาลองใหม่หรือให้ผู้ดูแลตรวจสอบขั้นตอนดาวน์โหลด')
+
+
 async def download(key, body):
     job = JOBS[key]
     directory = Path(app.state.directory) / key
     directory.mkdir()
     try:
+        ensure_media_tools()
         async with SLOTS:
-            await run_ytdlp(body.url, ['-f', format_selector(body.quality),
+            output = await run_ytdlp(body.url, ['-f', format_selector(body.quality),
                 '--merge-output-format', 'mp4', '--downloader', 'native', '--hls-prefer-native',
                 '--match-filter', 'duration <= 600 & !is_live', '-o', str(directory / 'video.%(ext)s')], directory)
-        video = directory / 'video.mp4'
-        if not video.is_file() or not 0 < video.stat().st_size <= MAX_BYTES:
-            raise RuntimeError('วิดีโอไม่มีรูปแบบ MP4 ที่รองรับ หรือเกินขนาด 100 MB / 10 นาที')
+        completed_video(directory, output)
         job['status'] = 'ready'
     except Exception as exc:
         job.update(status='error', error=str(exc) or 'ดาวน์โหลดหมดเวลา กรุณาลองอีกครั้ง')
@@ -246,6 +269,10 @@ async def begin(body: VideoRequest):
     validate_url(body.url)
     if not body.authorized:
         raise HTTPException(422, 'กรุณายืนยันสิทธิ์ในการดาวน์โหลด')
+    try:
+        ensure_media_tools()
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc))
     if sum(j['status'] == 'working' for j in JOBS.values()) >= 2:
         raise HTTPException(429, 'คิวเต็ม กรุณาลองอีกครั้ง')
     key = uuid.uuid4().hex

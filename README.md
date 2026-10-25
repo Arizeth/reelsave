@@ -13,6 +13,24 @@
 
 รับอัปเดตครั้งต่อไปผ่าน Source Control → Pull หรือ `git pull --ff-only` หลังเก็บการแก้ไขของตัวเองเรียบร้อยแล้ว โค้ดรันบน Windows ของคุณ ไม่ใช่บน GitHub และไม่จำเป็นต้องใช้ GitHub Pages
 
+## รันใน GitHub Codespaces (Linux)
+
+FFmpeg ที่ติดตั้งไว้บน Windows ไม่ได้ติดตั้งเข้า Codespaces ด้วย ต้องติดตั้งใน Terminal ของ Codespaces:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ffmpeg
+ffmpeg -version
+ffprobe -version
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000 --no-proxy-headers
+```
+
+เปิดแท็บ Ports → พอร์ต 8000 → Open in Browser โดยเก็บ visibility เป็น Private ระหว่างทดสอบ เปิด Terminal ค้างไว้ เมื่ออัปเดตโค้ดให้กด Ctrl+C แล้ว `git pull --ff-only` และเริ่ม uvicorn ใหม่อีกครั้ง
+
+หาก preview สำเร็จแต่ดาวน์โหลดล้มเหลว ให้ดูข้อความใหม่บนเว็บ: ระบบจะตรวจ ffmpeg/ffprobe ก่อนรับงาน และแยกกรณีไฟล์เกินขนาด, วิดีโอถูกข้ามตามนโยบาย, หรือภาพ/เสียงยังไม่ได้รวม แทนข้อความรวมสาเหตุเดิม จำลองแล้วว่า yt-dlp อาจคืน exit 0 เมื่อไม่มี FFmpeg แต่ทิ้งไฟล์ .f*.mp4 และ .m4a แยกกัน จึงไม่ใช้ exit code อย่างเดียวตัดสินว่าดาวน์โหลดสำเร็จ
+
 ## เปิดตัวอย่างบน Windows แบบดับเบิลคลิก
 
 แตก ReelSave-V2-Windows.zip ลงโฟลเดอร์ใหม่เพื่อไม่ทับโปรเจกต์เดิม แล้วดับเบิลคลิก `START-WINDOWS.cmd` ตัวเปิดจะสร้าง .venv ของ Windows, ติดตั้ง requirements และเปิดเบราว์เซอร์เมื่อเซิร์ฟเวอร์พร้อม ต้องมี Python 3.12 ผ่านคำสั่ง py และ FFmpeg/ffprobe บน PATH ใช้อินเทอร์เน็ตในการติดตั้งครั้งแรก เปิดหน้าต่างคำสั่งค้างไว้ขณะใช้งาน กด Ctrl+C เพื่อหยุด
@@ -92,7 +110,7 @@ Compose ผูกพอร์ตเฉพาะ loopback ใช้ non-root, rea
 - ffprobe: ภาพ AV1 720×1280, เสียง AAC, ความยาวรวม 16.047007 วินาที
 - FFmpeg ถอดรหัสภาพและเสียงตลอดไฟล์ผ่าน ไม่มีข้อผิดพลาด (เป็นการตรวจทางเทคนิค ยังไม่ได้ฟัง/ดูด้วยคน)
 - AV1 ใน MP4 อาจไม่เล่นในเบราว์เซอร์/มือถือรุ่นเก่า ยังไม่มีการ transcode เป็น H.264
-- ชุด pytest ล่าสุด 40 tests ครอบคลุม API/security, upstream CONNECT, ตัวเลือกฟอร์แมตแนวตั้งด้วย yt-dlp และ FFmpeg merge จริง มี Starlette TestClient deprecation warning 1 รายการ
+- ชุด pytest ล่าสุด 48 tests ครอบคลุม API/security, upstream CONNECT, ตัวเลือกฟอร์แมตแนวตั้งด้วย yt-dlp และ FFmpeg merge จริง มี Starlette TestClient deprecation warning 1 รายการ
 - JavaScript syntax และ Compose config ผ่าน Docker image build ครั้งก่อนติด DNS deb.debian.org ภายใน Docker ยังไม่ได้ทดสอบ container runtime หลัง Publish
 - Instagram, TikTok, Windows runtime, UI บนเบราว์เซอร์/มือถือจริง และ Facebook 1080p ยังไม่ได้ทดสอบ
 

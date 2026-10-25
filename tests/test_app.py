@@ -38,7 +38,7 @@ def test_proxy_blocks_actual_connect(client):
 def test_home_and_validation(client):
     response = client.get('/')
     assert response.status_code == 200
-    assert 'ReelSave' in response.text
+    assert 'FiTDownloads' in response.text
     assert 'frame-ancestors' in response.headers['content-security-policy']
     assert client.post('/api/inspect', json={'url':'https://localhost/'}).status_code == 422
     assert client.post('/api/download', json={'url':'https://www.facebook.com/reel/1'}).status_code == 422
@@ -73,6 +73,7 @@ def test_download_pipeline(client, monkeypatch):
     response = client.get('/api/files/' + key)
     assert response.content == b'test fixture'
     assert response.headers['content-type'] == 'video/mp4'
+    assert 'filename="fitdownloads-720p.mp4"' in response.headers['content-disposition']
 
 
 def test_platform_error(client, monkeypatch):

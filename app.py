@@ -65,7 +65,7 @@ async def lifespan(app):
     JOBS.clear()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(title='FiTDownloads', lifespan=lifespan)
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 
 
@@ -391,4 +391,4 @@ async def status(key: str):
 async def file(key: str):
     if key not in JOBS or JOBS[key]['status'] != 'ready':
         raise HTTPException(404, 'ไม่พบไฟล์')
-    return FileResponse(Path(app.state.directory) / key / 'video.mp4', filename=f"reelsave-{JOBS[key]['quality']}p.mp4", media_type='video/mp4')
+    return FileResponse(Path(app.state.directory) / key / 'video.mp4', filename=f"fitdownloads-{JOBS[key]['quality']}p.mp4", media_type='video/mp4')

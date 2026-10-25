@@ -19,7 +19,7 @@ def open_when_ready():
     for _ in range(60):
         try:
             with urllib.request.urlopen(ADDRESS, timeout=1) as response:
-                if response.status == 200 and b'ReelSave' in response.read(65536):
+                if response.status == 200 and b'FiTDownloads' in response.read(65536):
                     webbrowser.open(ADDRESS)
                     return
         except (OSError, urllib.error.URLError):
@@ -49,7 +49,7 @@ def main():
             probe.bind(('127.0.0.1', 8000))
         except OSError:
             raise SystemExit('Port 8000 is already in use. Stop the previous server and try again.')
-    print('Starting ReelSave. Keep this window open. Press Ctrl+C to stop.', flush=True)
+    print('Starting FiTDownloads. Keep this window open. Press Ctrl+C to stop.', flush=True)
     threading.Thread(target=open_when_ready, daemon=True).start()
     import uvicorn
     uvicorn.run('app:app', host='127.0.0.1', port=8000, workers=1, proxy_headers=False)

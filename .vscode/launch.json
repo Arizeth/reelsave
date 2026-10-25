@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "ReelSave: Windows local web",
+      "name": "FiTDownloads: Windows local web",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/run_windows.py",

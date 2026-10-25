@@ -76,7 +76,7 @@ async function download(option) {
       if (job.status === 'ready') {
         const link = document.createElement('a');
         link.href = `/api/files/${encodeURIComponent(id)}`;
-        link.download = `reelsave-${option.quality}p.mp4`;
+        link.download = `fitdownloads-${option.quality}p.mp4`;
         link.hidden = true;
         document.body.append(link);
         link.click();
